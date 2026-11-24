@@ -74,8 +74,14 @@ section{position:relative;padding:clamp(50px,9vw,120px) 18px}
 @media (hover:hover){.card-wrap:not(.locked):hover .card{transform:rotateY(9deg) rotateX(-5deg) scale(1.04)}}
 .card.flipped{transform:rotateY(180deg)!important}
 /* UWAGA: filter na .card psuje 3D (spłaszcza obrót), więc przyciemniamy tylko tył */
-.face.back{transition:filter .7s}
+.face.back{transition:filter .7s,visibility 0s .38s}
 .card.dim .face.back{filter:brightness(.6) saturate(.7)}
+/* Safari/iOS ignoruje backface-visibility przy zagnieżdżonych elementach: przełączamy strony ręcznie w połowie obrotu */
+.face.back *{-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.card.flipped .face.back{visibility:hidden}
+.face.front{visibility:hidden;transition:visibility 0s .38s}
+.card.flipped .face.front{visibility:visible}
+#zoom .face.front{visibility:visible}
 
 /* napięcie: coraz mocniejsze drżenie */
 .card.tense{animation:tense 3.2s cubic-bezier(.4,0,.6,1) forwards}
