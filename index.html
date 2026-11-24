@@ -313,7 +313,11 @@ async function choose(i){
     ...[...document.querySelectorAll('.front img')].map(im=>im.decode().catch(()=>{}))]);
   // 2) odsłanianie po kolei: 1, 2, 3
   hint.textContent='';
-  for(let j=0;j<3;j++){
+  // wybrana karta zawsze otwiera się ostatnia: lewa → 3,2,1 · środkowa → 1,3,2 · prawa → 1,2,3
+  const ORDER={0:[2,1,0],1:[0,2,1],2:[0,1,2]}[i];
+  for(let n=0;n<3;n++){
+    const j=ORDER[n];
+    if(j===i)await wait(900); // chwila ciszy przed ostatnią kartą
     cards[j].classList.remove('dim');
     await flipCard(cards[j],j===i?1.15:1);
     await wait(450);
