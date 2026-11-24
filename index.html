@@ -70,16 +70,11 @@ section{position:relative;padding:clamp(50px,9vw,120px) 18px}
 .card-wrap:nth-child(3){animation-delay:-3.6s;animation-duration:5.9s}
 @keyframes float{0%,100%{transform:translateY(0) rotate(-1.2deg)}50%{transform:translateY(-20px) rotate(1.2deg)}}
 .card-wrap.locked{animation-play-state:paused;cursor:default}
-.card{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.3,1.25,.4,1)}
+.card{position:relative;width:100%;height:100%;transition:transform .4s ease}
 @media (hover:hover){.card-wrap:not(.locked):hover .card{transform:rotateY(9deg) rotateX(-5deg) scale(1.04)}}
-.card.flipped{transform:rotateY(180deg)!important}
 /* UWAGA: filter na .card psuje 3D (spłaszcza obrót), więc przyciemniamy tylko tył */
 .face.back{transition:filter .7s}
 .card.dim .face.back{filter:brightness(.6) saturate(.7)}
-/* Safari/iOS: elementy z z-index wewnątrz karty ignorują backface-visibility rodzica,
-   więc dostają własne (i własną warstwę 3D) */
-.face.back>*{-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:translateZ(0)}
-.face.front>*{-webkit-backface-visibility:hidden;backface-visibility:hidden}
 
 /* napięcie: coraz mocniejsze drżenie */
 .card.tense{animation:tense 3.2s cubic-bezier(.4,0,.6,1) forwards}
@@ -96,7 +91,11 @@ section{position:relative;padding:clamp(50px,9vw,120px) 18px}
 }
 @keyframes glow{from{box-shadow:0 0 0 0 rgba(232,207,139,0),0 26px 50px rgba(0,0,0,.5)}to{box-shadow:0 0 28px 8px rgba(232,207,139,.8),0 12px 24px rgba(0,0,0,.5)}}
 
-.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.face{position:absolute;inset:0;overflow:hidden}
+/* obie strony zawsze narysowane; przód leży pod tyłem, a w połowie obrotu tył schodzi pod spód
+   (bez backface-visibility, które Safari psuje) */
+.face.back{z-index:2}
+.card.flipped .face.back{z-index:0}
 
 /* tył: zielona folia ze złotą siatką */
 .face.back{
@@ -129,7 +128,7 @@ section{position:relative;padding:clamp(50px,9vw,120px) 18px}
 /* przód */
 .face.front{
   --w:inherit;font-size:calc(var(--w)/18);
-  transform:rotateY(180deg);display:flex;flex-direction:column;padding:.8em;gap:.7em;
+  z-index:1;display:flex;flex-direction:column;padding:.8em;gap:.7em;
   background:linear-gradient(160deg,#fffdf4,#f3e5b8);color:var(--ink);border-radius:6px;
   border:3px solid var(--gold);box-shadow:0 0 0 5px #f6e9c4,0 0 0 7px var(--gold),0 12px 26px rgba(0,0,0,.5);
 }
@@ -153,7 +152,7 @@ section{position:relative;padding:clamp(50px,9vw,120px) 18px}
   -webkit-mask:radial-gradient(circle,#000 0,transparent 40%);mask:radial-gradient(circle,#000 0,transparent 40%);animation:spin 50s linear infinite}
 #rays.on{opacity:1}
 #zoom{--w:min(84vw,min(400px,52svh*.75*1.6));position:fixed;inset:0;margin:auto;z-index:52;width:var(--w);height:calc(var(--w)*4/3);visibility:hidden;will-change:transform}
-#zoom .face.front{backface-visibility:visible;transform:none;position:absolute;inset:0;
+#zoom .face.front{transform:none;position:absolute;inset:0;
   box-shadow:0 0 0 5px #f6e9c4,0 0 0 7px var(--gold),0 0 36px 6px rgba(232,207,139,.55),0 14px 30px rgba(0,0,0,.6)}
 #zoom.float .face.front{animation:zfloat 3.6s ease-in-out infinite}
 @keyframes zfloat{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-8px) rotate(1deg)}}
@@ -312,17 +311,30 @@ async function choose(i){
   cards[i].classList.add('tense');
   await Promise.all([wait(3300),allReady(),
     ...[...document.querySelectorAll('.front img')].map(im=>im.decode().catch(()=>{}))]);
-  cards[i].classList.remove('tense');
-  cards[i].querySelector('.back').style.animation='none';
   // 2) odsłanianie po kolei: 1, 2, 3
   hint.textContent='';
   for(let j=0;j<3;j++){
-    cards[j].classList.remove('dim');cards[j].classList.add('flipped');
-    await wait(1100);
+    cards[j].classList.remove('dim');
+    await flipCard(cards[j],j===i?1.15:1);
+    await wait(450);
   }
   await wait(500);
   // 3) zwycięska karta leci na ekran
   await zoomIn();
+}
+
+/* obrót bez 3D-tyłu: zwężenie do krawędzi, zmiana strony, rozwinięcie */
+async function flipCard(c,s0=1){
+  const a1=c.animate([{transform:`scale(${s0}) rotateY(0deg)`},{transform:'scale(1.06) rotateY(90deg)'}],
+    {duration:340,easing:'ease-in',fill:'forwards'});
+  c.classList.remove('tense');
+  await a1.finished;
+  c.classList.add('flipped');
+  c.querySelector('.back').style.animation='none';
+  const a2=c.animate([{transform:'scale(1.06) rotateY(-90deg)'},{transform:'scale(1) rotateY(0deg)'}],
+    {duration:480,easing:'cubic-bezier(.2,1.3,.4,1)'});
+  a1.cancel();
+  await a2.finished;
 }
 
 async function zoomIn(){
